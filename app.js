@@ -18,10 +18,10 @@ var client_secret = '50e0fd148a574abe9fd6331c364b9261'; // Your client secret
 
 if (process.env.development === true) {
   console.log ("staring in development mode")
-  var redirect_uri = 'https://safe-sands-4304.herokuapp.com/callback';
+  var redirect_uri = 'http://localhost:'+(process.env.PORT || '3000')+'/callback'; // Your redirect uri
 }
 else{
-  var redirect_uri = 'http://localhost:'+(process.env.PORT || '3000')+'/callback'; // Your redirect uri
+  var redirect_uri = 'https://safe-sands-4304.herokuapp.com/callback';
 }
 
 /**
