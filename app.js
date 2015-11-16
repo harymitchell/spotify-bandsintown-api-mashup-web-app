@@ -40,7 +40,7 @@ var routes = require('./routes/routes');
 var users = require('./routes/users');
 
 var app = express();
-var server = app.listen(process.env.PORT || 8888)
+// var server = app.listen(process.env.PORT || 8888)
 
 //Session
 var sessionMiddleware = session({ 
