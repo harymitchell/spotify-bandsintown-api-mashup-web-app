@@ -14,7 +14,7 @@ var geolib = require('geolib')
 // AUTH
 var client_id = '67deffe54f754dddb1674a6650fccd6b'; // Your client id
 var client_secret = '50e0fd148a574abe9fd6331c364b9261'; // Your client secret
-var redirect_uri = 'http://localhost:8888/callback'; // Your redirect uri
+var redirect_uri = 'http://localhost:'+(process.env.PORT || '3000')+'/callback'; // Your redirect uri
 
 /**
  * Generates a random string containing numbers and letters
