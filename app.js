@@ -10,11 +10,18 @@ var session      = require('express-session');
 var async = require("async");
 var cities = require('cities');
 var geolib = require('geolib')
+var url = require('url')
 
 // AUTH
 var client_id = '67deffe54f754dddb1674a6650fccd6b'; // Your client id
 var client_secret = '50e0fd148a574abe9fd6331c364b9261'; // Your client secret
-var redirect_uri = 'http://localhost:'+(process.env.PORT || '3000')+'/callback'; // Your redirect uri
+
+if (app.get('env') === 'development') {
+  console.log ("staring in development mode")
+  var redirect_uri = 'https://safe-sands-4304.herokuapp.com/callback';
+else{
+  var redirect_uri = 'http://localhost:'+(process.env.PORT || '3000')+'/callback'; // Your redirect uri
+}
 
 /**
  * Generates a random string containing numbers and letters
