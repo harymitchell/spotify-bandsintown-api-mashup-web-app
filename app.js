@@ -7,6 +7,9 @@ var querystring = require('querystring');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var session      = require('express-session');
+var async = require("async");
+var cities = require('cities');
+var geolib = require('geolib')
 
 // AUTH
 var client_id = '67deffe54f754dddb1674a6650fccd6b'; // Your client id
@@ -156,26 +159,191 @@ app.get('/callback', function(req, res) {
 
 
 /* GET Search Results. */
-app.get('/search', function(req, res, next) {
+app.post('/search', function(req, res, next) {
+  getSpotifyArtists(req, res, function(){
+    console.log("redirecting...")  
+    res.send({})
+  })
+});
+
+
+function getSpotifyArtists(req, res, callback){
+  // Get Spotify artists for session user.
   if (req.session.user) {
-    var refresh_token = req.session.refresh_token
-    var access_token = req.session.access_token
-    console.log ("Searching for user: "+ JSON.stringify(req.session.user))
-    var options = {
-      url: 'https://api.spotify.com/v1/me/following?type=artist',
-      headers: { 'Authorization': 'Bearer ' + access_token },
-      json: true
-    };
-    request.get(options, function(error, response, body) {
-      console.log(body);
-      req.session.user.last_artists = body.artists
-      res.redirect ('/')
-    });
+    if (req.session.user.last_artists && req.session.user.last_artists.length > 0){
+      console.log ("Using cached spotify artists.")
+      getSpotifyArtistsEventsFromBandsintown (req.session.user.last_artists, req, res, callback)      
+    }else{
+      // Gather artists from Spotify API.
+      var refresh_token = req.session.refresh_token
+      var access_token = req.session.access_token
+      req.session.user.last_artists = []
+      console.log ("Searching for user: "+ JSON.stringify(req.session.user).display_name)
+      var artistOptions = {
+        url: 'https://api.spotify.com/v1/me/following?type=artist',
+        headers: { 'Authorization': 'Bearer ' + access_token },
+        json: true
+      };
+      var trackOptions = {
+        url: 'https://api.spotify.com/v1/me/tracks',
+        headers: { 'Authorization': 'Bearer ' + access_token },
+        json: true
+      };
+      // Gather spotify artists.
+      async.series([
+        function(cb){ // Gather followed artists
+          request.get(artistOptions, function(error, response, body) {
+            console.log ("Found "+body.artists.items.length+" followed artists.")
+            // console.log (body.artists)
+            req.session.user.last_artists = req.session.user.last_artists.concat (body.artists.items)
+            console.log ("req.session.user.last_artists="+JSON.stringify(req.session.user.last_artists))
+            cb()
+          });
+        },
+        function(cb){ // Gather saved tracks
+          request.get(trackOptions, function(error, response, body) {
+            var i,j;
+            console.log ("found tracks: "+JSON.stringify(body.items))
+            for (i=0;i<body.items.length;i++){
+              for (j=0;j<body.items[i].track.artists.length;j++){
+                if (req.session.user.last_artists.indexOf(body.items[i].track.artists[j])==-1){
+                  req.session.user.last_artists = req.session.user.last_artists.concat (body.items[i].track.artists[j])
+                }
+              }
+            }
+            console.log ("req.session.user.last_artists="+JSON.stringify(req.session.user.last_artists))
+            cb()
+          });
+        }
+        ],
+        // optional callback
+        function(err, results){
+          console.log ("callback series")
+          getSpotifyArtistsEventsFromBandsintown (req.session.user.last_artists, req, res, callback)
+        }
+      );
+    }
   }else{
     // TODO flash that log-in is required.
-    res.redirect ('/')    
+    callback()   
   }
-});
+}
+
+function getSpotifyArtistsEventsFromBandsintown(artists, req, res, callback){
+  var bandsintown_url_head = 'http://api.bandsintown.com/artists/'
+  var bandsintown_url_tail = '/events.json?api_version=2.0&app_id=showfinderplusbetadev'
+  var bandsintown_events = []
+  // console.log ("in getSpotifyArtistsEventsFromBandsintown for "+artists)
+  // Asnchronous loop.
+  async.each(
+    artists, // List of spotify artists to iterate
+    function(artist, cb){ // Function to call on each item.
+      // console.log ("looping for spotify artist: "+artist)
+      var url_encoded = bandsintown_url_head+encodeURIComponent(artist['name'])+bandsintown_url_tail
+      console.log ("encoded uri: "+url_encoded)
+      request.get(url_encoded, function(error, response, body){
+          if (error) {
+            console.log ("bandsintown artist callback err: "+error)
+          }else{
+            // console.log ("bandsintown artist callback for body: "+body)
+            // var bandsintown_events_json = JSON.parse(body)
+            bandsintown_events = bandsintown_events.concat(JSON.parse(body))
+            if (req.data && req.data.zipCode && request.data.radius){
+              var i = 0;
+              var dist;
+              var zipCode = cities.zip_lookup(data.zipCode)
+              for (i=0;i<bandsintown_events.length;i++){
+                dist = geolib.getDistance(bandsintown_events[i].venue,zipCode);
+                console.log ('dist='+dist)
+              }
+            }
+            // console.log (bandsintown_events.length)
+          }
+          cb() // required for call to return!
+      });
+    },
+    function(err){ // Callback when all asynch calls return.
+      console.log ("return callback")
+      if (err){
+        console.error ("Error: "+err)
+      }else{
+        // console.log ("bandsintown_events: "+JSON.stringify(bandsintown_events))
+        console.log ("all asynch calls in getSpotifyArtistsEventsFromBandsintown have returned")
+        req.session.user.last_events = bandsintown_events
+        callback()
+      }
+    }
+  ); // end async.each
+}
+
+
+// NOTE: I have had problems with rate limiting, so putting JamBase on hold.
+
+// function getSpotifyArtistsFromJameBase(artists, req, res, callback){
+//   // Get jamebase artists from Spotify artists.
+//   var jamebase_url_head = 'http://api.jambase.com/artists?name='
+//   var jamebase_url_tail = '&page=0&api_key=2cmgm277bcufb5v9vn7xv823'
+//   var jb_artists = []
+//   console.log ("in getSpotifyArtistsFromJameBase for artists: "+JSON.stringify(artists))
+//   // Asnchronous loop.
+//   async.each(
+//     artists.items, // List of artists to iterate
+//     function(artist, cb){ // Function to call on each item.
+//       console.log ("looping for spotify artist: "+artist)
+//       setTimeout(function(){
+//         request.get(jamebase_url_head+artist['name']+jamebase_url_tail, function(error, response, body){
+//           if (error) {
+//             console.log ("jamebase artist callback err: "+error)
+//             res.redirect ('/')
+//           }else{
+//             console.log ("jamebase artist callback for body: "+body)
+//             var json_artists = JSON.parse(body)
+//             jb_artists = jb_artists.concat(json_artists)
+//             console.log ("artists:"+JSON.stringify(json_artists['Artists']))
+//             console.log ("artists[0]"+JSON.stringify(json_artists['Artists'][0]))
+//             console.log ("artists[0][id]"+JSON.stringify(json_artists['Artists'][0]['Id']))
+//           }
+//         });
+//       }, 3000)
+//     },
+//     function(err){ // Callback when all asynch calls return.
+//       if (err){
+//         console.error (err)
+//       }else{
+//         console.log ("all asynch calls have returned")
+//         getJameBaseShowsForArtists (jb_artists, req, res, callback)
+//       }
+//     }
+//   );
+// }
+
+// function getJameBaseShowsForArtists(artists, req, res, callback){
+//   // Get jamebase shows for JamBase artists.
+//   // ex: http://api.jambase.com/events?artistId=2698&zipCode=95128&radius=50&page=0&api_key=2cmgm277bcufb5v9vn7xv823
+//   var shows = []
+//   // Asnchronous loop.
+//   async.each(
+//     artist, // artists to loop
+//     function(item, cb){
+//       request.get ('http://api.jambase.com/events?artistId='+artist['Id']+'&api_key=2cmgm277bcufb5v9vn7xv823', function(error, response, body){
+//         if (error) {
+//           console.log ("jamebase err: "+error+" for: "+JSON.stringify(artist))
+//         }else{
+//           shows = shows.concat(body)
+//           console.log ("jb body: "+body)
+//         }
+//       });
+//     },
+//     function(err){
+//       if (err){
+//         console.error (err)
+//       }else{
+//         console.log ("all asynch calls in getJameBaseShowsForArtists have returned")
+//         callback()
+//       }
+//     }
+//   );
+// }
 
 
 app.get('/refresh_token', function(req, res) {

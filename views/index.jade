@@ -1,64 +1,41 @@
 extends layout
 
 block content
-  .container
-    .header.clearfix
-      nav
-        ul.nav.nav-pills.pull-right
-          li.active(role='presentation')
-            a(href='#') Home
-          li(role='presentation')
-            a(href='#') About
-          li(role='presentation')
-            a(href='#') Contact
-          if user
-            li(role='presentation')
-              a(href='/logout') Logout
-      h3.text-muted= title
+    script(src='/javascripts/index.js')
     .jumbotron
-      h1 Show Finder Plus
+      h1=title
       p.lead
         | Find music events featuring your favorite artists from Spotify.
+      p Music data provided by Bandsintown.
       if user
-        p
-          a.btn.btn-lg.btn-success(href='/search', role='button') Search
         if user.display_name
           h3= "Welcome, "+user.display_name+"!"
+        p
+          a.btn.btn-lg.btn-success#searchButton(role='button') Search
+          fieldset
+              span Within
+              input#inputRadius(type='number', placeholder='Radius', min="1" max="150")
+              span miles of
+              input#inputZipCode(type='text', placeholder='Zip Code', pattern="d{5,5}(-\d{4,4})?")
       else
         p
           a.btn.btn-lg.btn-success(href='/login', role='button') Spotify Log-In
-    if user && user.last_artists
+    if user && user.last_events
       #showList.list
         table
             thead
-                th Name
-                th Popularity
+                th Event
+                th When
+                th Where
+                th 
             tbody
-              each artist in user.last_artists.items
+              each event in user.last_events
                 tr
-                  td= artist.name
-                  td= artist.popularity
-    // / Marketing
-      .row.marketing
-        .col-lg-6
-          h4 Subheading
-          p
-            | Donec id elit non mi porta gravida at eget metus. Maecenas faucibus mollis interdum.
-          h4 Subheading
-          p
-            | Morbi leo risus, porta ac consectetur ac, vestibulum at eros. Cras mattis consectetur purus sit amet fermentum.
-          h4 Subheading
-          p Maecenas sed diam eget risus varius blandit sit amet non magna.
-        .col-lg-6
-          h4 Subheading
-          p
-            | Donec id elit non mi porta gravida at eget metus. Maecenas faucibus mollis interdum.
-          h4 Subheading
-          p
-            | Morbi leo risus, porta ac consectetur ac, vestibulum at eros. Cras mattis consectetur purus sit amet fermentum.
-          h4 Subheading
-          p Maecenas sed diam eget risus varius blandit sit amet non magna.
-      footer.footer
-        p © 2015 Company, Inc.
-    // / Marketing
+                  td= event.title
+                  td= event.formatted_datetime
+                  td= event.formatted_location
+                  td 
+                    a(href=event.facebook_rsvp_url) RSVP
+                    br
+                    a(href=event.ticket_url) Tix
   // /container
