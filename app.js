@@ -16,8 +16,8 @@ var url = require('url')
 var client_id = '67deffe54f754dddb1674a6650fccd6b'; // Your client id
 var client_secret = '50e0fd148a574abe9fd6331c364b9261'; // Your client secret
 
-if (process.env.development === true) {
-  console.log ("staring in development mode")
+if (process.env.NODE_DEV == 'true') {
+  console.log ("Staring server in development mode...")
   var redirect_uri = 'http://localhost:'+(process.env.PORT || '3000')+'/callback'; // Your redirect uri
 }
 else{
@@ -241,6 +241,7 @@ function getSpotifyArtistsEventsFromBandsintown(artists, req, res, callback){
   var bandsintown_url_head = 'http://api.bandsintown.com/artists/'
   var bandsintown_url_tail = '/events.json?api_version=2.0&app_id=showfinderplusbetadev'
   var bandsintown_events = []
+  var zipCode = cities.zip_lookup(req.body.zip)
   // console.log ("in getSpotifyArtistsEventsFromBandsintown for "+artists)
   // Asnchronous loop.
   async.each(
@@ -248,22 +249,27 @@ function getSpotifyArtistsEventsFromBandsintown(artists, req, res, callback){
     function(artist, cb){ // Function to call on each item.
       // console.log ("looping for spotify artist: "+artist)
       var url_encoded = bandsintown_url_head+encodeURIComponent(artist['name'])+bandsintown_url_tail
-      console.log ("encoded uri: "+url_encoded)
+      //console.log ("encoded uri: "+url_encoded)
       request.get(url_encoded, function(error, response, body){
           if (error) {
             console.log ("bandsintown artist callback err: "+error)
           }else{
             // console.log ("bandsintown artist callback for body: "+body)
             // var bandsintown_events_json = JSON.parse(body)
-            bandsintown_events = bandsintown_events.concat(JSON.parse(body))
-            if (req.data && req.data.zipCode && request.data.radius){
+            var body_json = JSON.parse(body)
+            if (req.body && req.body.zip && req.body.radius){
               var i = 0;
               var dist;
-              var zipCode = cities.zip_lookup(data.zipCode)
-              for (i=0;i<bandsintown_events.length;i++){
-                dist = geolib.getDistance(bandsintown_events[i].venue,zipCode);
-                console.log ('dist='+dist)
+              for (i=0;i<body_json.length;i++){
+                dist = geolib.getDistance(body_json[i].venue,zipCode)*0.000621371; // miles
+                if (req.body.radius >= dist) {
+                  //console.log ('dist='+dist)
+                  //console.log ('rad='+req.body.radius)
+                  bandsintown_events.push (body_json[i])
+                }
               }
+            }else{  
+              bandsintown_events = bandsintown_events.concat(body_json)
             }
             // console.log (bandsintown_events.length)
           }

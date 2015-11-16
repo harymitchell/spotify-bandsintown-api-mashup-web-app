@@ -1,2 +1,4 @@
 data/*
 node_modules/*
+app_goog_dist.js
+dist.js
