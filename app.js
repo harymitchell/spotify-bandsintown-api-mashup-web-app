@@ -149,7 +149,8 @@ app.get('/callback', function(req, res) {
         req.session.refresh_token = refresh_token
 
         // we can also pass the token to the browser to make requests from there,
-        // but I dont believe that is going to be needed for my use case.
+        // but I dont believe that is going to be needed for my use case,
+        // and I prefer the single page ajax approach.
         //res.redirect('/#' +
         //  querystring.stringify({
         //    access_token: access_token,
@@ -170,7 +171,7 @@ app.get('/callback', function(req, res) {
 app.post('/search', function(req, res, next) {
   getSpotifyArtists(req, res, function(){
     console.log("redirecting...")  
-    res.send({})
+    res.send({events: req.session.user.last_events})
   })
 });
 
@@ -291,19 +292,16 @@ function getSpotifyArtistsEventsFromBandsintown(artists, req, res, callback){
     var bandsintown_url_tail = '/events.json?api_version=2.0&app_id=showfinderplusbetadev'+encodeURIComponent(generateRandomString(4))
     var bandsintown_events = []
     req.session.user.cached_events = []
-    // console.log ("in getSpotifyArtistsEventsFromBandsintown for "+artists)
     // Asnchronous loop.
     async.each(
       artists, // List of spotify artists to iterate
       function(artist, cb){ // Function to call on each item.
-        // console.log ("looping for spotify artist: "+artist)
         var url_encoded = bandsintown_url_head+encodeURIComponent(artist['name'])+bandsintown_url_tail
         console.log ("encoded uri: "+url_encoded)
         request.get(url_encoded, function(error, response, body){
             if (error) {
               console.log ("bandsintown artist callback err: "+error)
             }else{
-              // var bandsintown_events_json = JSON.parse(body)
               var body_json = JSON.parse(body)
               // Cache events, to avoid rate limiting
               req.session.user.cached_events = req.session.user.cached_events.concat(body_json)
@@ -329,17 +327,13 @@ function getSpotifyArtistsEventsFromBandsintown(artists, req, res, callback){
 }
 
 function filteredBandsintownEvents(req, events, zipCode){
+  // Returns a list of filtered items from events based on given zipCode and the zip and radius contained in the req.
   var result = [] // to return 
   var i = 0;
-  // console.log ("enter filteredBandsintownEvents")
   for (i=0;i<events.length;i++){
     if (req.body && req.body.zip && req.body.radius && zipCode && result.indexOf(events[i]) == -1){
       var dist;
-      // console.log ('before geo '+i)
       dist = geolib.getDistance(events[i].venue,zipCode)*0.000621371; // miles
-      // console.log ('after geo '+i)
-      // console.log ('dist='+dist)
-      // console.log ('rad='+req.body.radius)
       if (req.body.radius >= dist) {
         result.push (events[i])
       }
@@ -349,7 +343,6 @@ function filteredBandsintownEvents(req, events, zipCode){
       console.log ("duplicate event: "+JSON.stringify(events[i]))
     }
   }
-  console.log ("exit filteredBandsintownEvents")
   return result
 }
 

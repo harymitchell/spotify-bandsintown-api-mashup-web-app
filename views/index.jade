@@ -2,6 +2,7 @@ extends layout
 
 block content
     script(src='/javascripts/index.js')
+    link(rel="stylesheet", href="http://css-spinners.com/css/spinner/throbber.css" type="text/css")
     .jumbotron
       h1=title
       p.lead
@@ -12,30 +13,15 @@ block content
           h3= "Welcome, "+user.display_name+"!"
         p
           a.btn.btn-lg.btn-success#searchButton(role='button') Search
+          .throbber-loader
           fieldset
               span Within
-              input#inputRadius(type='number', placeholder='Radius', min="1" max="150")
-              span miles of
+              input#inputRadius(type='number', placeholder='Miles', min="1" max="150")
+              span of
               input#inputZipCode(type='text', placeholder='Zip Code', pattern="d{5,5}(-\d{4,4})?")
       else
         p
-          a.btn.btn-lg.btn-success(href='/login', role='button') Spotify Log-In
-    if user && user.last_events
-      #showList.list
-        table
-            thead
-                th Event
-                th When
-                th Where
-                th 
-            tbody
-              each event in user.last_events
-                tr
-                  td= event.title
-                  td= event.formatted_datetime
-                  td= event.formatted_location
-                  td 
-                    a(href=event.facebook_rsvp_url) RSVP
-                    br
-                    a(href=event.ticket_url) Tix
+          a.btn.btn-lg.btn-success#loginButton(href='/login', role='button') Spotify Log-In
+          .throbber-loader
+    #showList.list
   // /container
