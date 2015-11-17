@@ -197,30 +197,53 @@ function getSpotifyArtists(req, res, callback){
         headers: { 'Authorization': 'Bearer ' + access_token },
         json: true
       };
+      var playlistOptions = {
+        url: 'https://api.spotify.com/v1/users/'+req.session.user.id+'/playlists',
+        headers: { 'Authorization': 'Bearer ' + access_token },
+        json: true
+      };
       // Gather spotify artists.
       async.series([
         function(cb){ // Gather followed artists
           request.get(artistOptions, function(error, response, body) {
-            console.log ("Found "+body.artists.items.length+" followed artists.")
+            // console.log ("Found "+body.artists.items.length+" followed artists.")
             // console.log (body.artists)
             req.session.user.last_artists = req.session.user.last_artists.concat (body.artists.items)
             console.log ("req.session.user.last_artists="+JSON.stringify(req.session.user.last_artists))
             cb()
           });
-        },
-        function(cb){ // Gather saved tracks
+        }
+        ,function(cb){ // Gather saved tracks
           request.get(trackOptions, function(error, response, body) {
+            addToArtistsFromTracks (req, body.items, cb)
+          });
+        }
+        ,function(cb){ // Gather all tracks from playlists.
+          request.get(playlistOptions, function(error, response, body) {
             var i,j;
-            console.log ("found tracks: "+JSON.stringify(body.items))
+            var playlistTrackOptions = {
+              url: '',
+              headers: { 'Authorization': 'Bearer ' + access_token },
+              json: true
+            };
+            console.log ("found playlists: "+JSON.stringify(body.items))
+            var c = 0
+            var qlen = body.items.length
             for (i=0;i<body.items.length;i++){
-              for (j=0;j<body.items[i].track.artists.length;j++){
-                if (req.session.user.last_artists.indexOf(body.items[i].track.artists[j])==-1){
-                  req.session.user.last_artists = req.session.user.last_artists.concat (body.items[i].track.artists[j])
+              playlistTrackOptions.url = body.items[i].tracks.href
+              console.log('href: '+playlistTrackOptions.url)
+              request.get(playlistTrackOptions, function(error, response, body) { // gather all artists from tracks in playlist
+                c += 1
+                console.log ('c: '+c+', qlen: '+qlen)
+                if(c == qlen){
+                  console.log('with callback')
+                  addToArtistsFromTracks (req, body.items, cb)
+                }else{
+                  addToArtistsFromTracks (req, body.items, null)                  
                 }
-              }
+              });
             }
-            console.log ("req.session.user.last_artists="+JSON.stringify(req.session.user.last_artists))
-            cb()
+            // console.log ("req.session.user.last_artists="+JSON.stringify(req.session.user.last_artists))
           });
         }
         ],
@@ -237,57 +260,97 @@ function getSpotifyArtists(req, res, callback){
   }
 }
 
-function getSpotifyArtistsEventsFromBandsintown(artists, req, res, callback){
-  var bandsintown_url_head = 'http://api.bandsintown.com/artists/'
-  var bandsintown_url_tail = '/events.json?api_version=2.0&app_id=showfinderplusbetadev'
-  var bandsintown_events = []
-  var zipCode = cities.zip_lookup(req.body.zip)
-  // console.log ("in getSpotifyArtistsEventsFromBandsintown for "+artists)
-  // Asnchronous loop.
-  async.each(
-    artists, // List of spotify artists to iterate
-    function(artist, cb){ // Function to call on each item.
-      // console.log ("looping for spotify artist: "+artist)
-      var url_encoded = bandsintown_url_head+encodeURIComponent(artist['name'])+bandsintown_url_tail
-      //console.log ("encoded uri: "+url_encoded)
-      request.get(url_encoded, function(error, response, body){
-          if (error) {
-            console.log ("bandsintown artist callback err: "+error)
-          }else{
-            // console.log ("bandsintown artist callback for body: "+body)
-            // var bandsintown_events_json = JSON.parse(body)
-            var body_json = JSON.parse(body)
-            if (req.body && req.body.zip && req.body.radius){
-              var i = 0;
-              var dist;
-              for (i=0;i<body_json.length;i++){
-                dist = geolib.getDistance(body_json[i].venue,zipCode)*0.000621371; // miles
-                if (req.body.radius >= dist) {
-                  //console.log ('dist='+dist)
-                  //console.log ('rad='+req.body.radius)
-                  bandsintown_events.push (body_json[i])
-                }
-              }
-            }else{  
-              bandsintown_events = bandsintown_events.concat(body_json)
-            }
-            // console.log (bandsintown_events.length)
-          }
-          cb() // required for call to return!
-      });
-    },
-    function(err){ // Callback when all asynch calls return.
-      console.log ("return callback")
-      if (err){
-        console.error ("Error: "+err)
-      }else{
-        // console.log ("bandsintown_events: "+JSON.stringify(bandsintown_events))
-        console.log ("all asynch calls in getSpotifyArtistsEventsFromBandsintown have returned")
-        req.session.user.last_events = bandsintown_events
-        callback()
+function addToArtistsFromTracks (req, tracks, cb){
+  // Add to artists tracks from req with trackOptions.
+  var i,j;
+  console.log ("found "+tracks.length+" tracks: ")//+JSON.stringify(tracks))
+  for (i=0;i<tracks.length;i++){
+    for (j=0;j<tracks[i].track.artists.length;j++){
+      if (req.session.user.last_artists.indexOf(tracks[i].track.artists[j])==-1){
+        req.session.user.last_artists = req.session.user.last_artists.concat (tracks[i].track.artists[j])
       }
     }
-  ); // end async.each
+  }
+  // console.log ("artists="+JSON.stringify(req.session.user.last_artists))
+  if(cb) {
+    console.log ("addToArtistsFromTracks calling back")
+    cb()
+  }else{
+    console.log("no callback")
+  }
+}
+
+function getSpotifyArtistsEventsFromBandsintown(artists, req, res, callback){
+  var zipCode = cities.zip_lookup(req.body.zip)
+  if (req.session.user && req.session.user.cached_events){
+    console.log("using cached events for user")
+    req.session.user.last_events = filteredBandsintownEvents(req, req.session.user.cached_events, zipCode)
+    callback()
+  }else{
+    var bandsintown_url_head = 'http://api.bandsintown.com/artists/'
+    var bandsintown_url_tail = '/events.json?api_version=2.0&app_id=showfinderplusbetadev'+encodeURIComponent(generateRandomString(4))
+    var bandsintown_events = []
+    req.session.user.cached_events = []
+    // console.log ("in getSpotifyArtistsEventsFromBandsintown for "+artists)
+    // Asnchronous loop.
+    async.each(
+      artists, // List of spotify artists to iterate
+      function(artist, cb){ // Function to call on each item.
+        // console.log ("looping for spotify artist: "+artist)
+        var url_encoded = bandsintown_url_head+encodeURIComponent(artist['name'])+bandsintown_url_tail
+        console.log ("encoded uri: "+url_encoded)
+        request.get(url_encoded, function(error, response, body){
+            if (error) {
+              console.log ("bandsintown artist callback err: "+error)
+            }else{
+              // var bandsintown_events_json = JSON.parse(body)
+              var body_json = JSON.parse(body)
+              // Cache events, to avoid rate limiting
+              req.session.user.cached_events = req.session.user.cached_events.concat(body_json)
+              // console.log ("bandsintown artist callback for body of length: "+body_json.length)
+              bandsintown_events = bandsintown_events.concat(filteredBandsintownEvents(req, body_json, zipCode))
+            }
+            cb() // required for call to return!
+        });
+      },
+      function(err){ // Callback when all asynch calls return.
+        console.log ("return callback")
+        if (err){
+          console.error ("Error: "+err)
+        }else{
+          // console.log ("bandsintown_events: "+JSON.stringify(bandsintown_events))
+          console.log ("all asynch calls in getSpotifyArtistsEventsFromBandsintown have returned")
+          req.session.user.last_events = bandsintown_events
+          callback()
+        }
+      }
+    ); // end async.each
+  }
+}
+
+function filteredBandsintownEvents(req, events, zipCode){
+  var result = [] // to return 
+  var i = 0;
+  // console.log ("enter filteredBandsintownEvents")
+  for (i=0;i<events.length;i++){
+    if (req.body && req.body.zip && req.body.radius && zipCode && result.indexOf(events[i]) == -1){
+      var dist;
+      // console.log ('before geo '+i)
+      dist = geolib.getDistance(events[i].venue,zipCode)*0.000621371; // miles
+      // console.log ('after geo '+i)
+      // console.log ('dist='+dist)
+      // console.log ('rad='+req.body.radius)
+      if (req.body.radius >= dist) {
+        result.push (events[i])
+      }
+    }else if(result.indexOf(events[i]) == -1){  
+      result.push (events[i])
+    }else{
+      console.log ("duplicate event: "+JSON.stringify(events[i]))
+    }
+  }
+  console.log ("exit filteredBandsintownEvents")
+  return result
 }
 
 
