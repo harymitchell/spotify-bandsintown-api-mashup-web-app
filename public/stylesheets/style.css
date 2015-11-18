@@ -82,7 +82,7 @@ body {
 
 #showList table{
   margin: 0 auto;
-  width: 80%
+  width: 100%
 }
 
 .throbber-loader{
@@ -126,6 +126,7 @@ input#inputZipCode{
 }
 .list#showList table{
   table-layout: fixed;
+  word-wrap: normal
 }
 .parentRow {
   color: #337ab7;

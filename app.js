@@ -209,7 +209,9 @@ function getSpotifyArtists(req, res, callback){
           request.get(artistOptions, function(error, response, body) {
             // console.log ("Found "+body.artists.items.length+" followed artists.")
             // console.log (body.artists)
-            req.session.user.last_artists = req.session.user.last_artists.concat (body.artists.items)
+            if (body.artists){
+              req.session.user.last_artists = req.session.user.last_artists.concat (body.artists.items)
+            }
             console.log ("req.session.user.last_artists="+JSON.stringify(req.session.user.last_artists))
             cb()
           });
