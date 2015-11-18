@@ -13,7 +13,8 @@ $(document).ready(function() {
     $('#searchButton').show();
     $('#loginButton').show();
     $('li#home').addClass('active');
-    $( "#inputRadius" ).val (50)
+    //$( "#inputRadius" ).val (50)
+    $( "#inputRadius" ).focus()
     $('#searchButton').on('click', function(){
 	searchEvents ()
     });
