@@ -110,7 +110,8 @@ body {
 		}
 			.list table td {
 				background:#FFF;
-				padding:5px 10px;
+                                padding-bottom: 5px;
+                                padding-top: 5px;
 				text-align:center;
 			}
 
@@ -126,7 +127,7 @@ input#inputZipCode{
 }
 .list#showList table{
   table-layout: fixed;
-  word-wrap: normal
+  word-wrap: break-word
 }
 .parentRow {
   color: #337ab7;

@@ -80,8 +80,8 @@ function loadEventsList (events, sortValue){
 	tableContent += '<table>'
 	    tableContent += '<col width="45%" />'
 	    tableContent += '<col width="25%" />'
-	    tableContent += '<col width="20%" />'
-	    tableContent += '<col width="10%" />'
+	    tableContent += '<col width="25%" />'
+	    tableContent += '<col width="15%" />'
 	    tableContent += '<tbody>'
 	$.each(events, function(){
 	    if (this.artists[0] && this.artists[0].name != currentArtist) {
