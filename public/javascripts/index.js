@@ -154,6 +154,7 @@ function setUpListEvents () {
 }
 
 function setZipCodeForClient(){
+    var log = ''
     if(navigator.geolocation) {
 	navigator.geolocation.getCurrentPosition(function(a) {
 	    console.log (a.coords)
@@ -166,16 +167,20 @@ function setZipCodeForClient(){
 	      cache: true,
 	    }).success(function( data ) {
 		//console.log (data)
+		log += 'data '+JSON.stringify(data)
 		for (i in data.results){
+		    log += ("found data results "+data.results[i])
 		    for (c in data.results[i].address_components){
-			//console.log (data.results[0].address_components[c])
+			log += ("found data.results[i].address_components "+data.results[i].address_components)
 			if (data.results[i].address_components[c].types && data.results[i].address_components[c].types[0] == 'postal_code'){
 			  $( "#inputZipCode" ).val (data.results[i].address_components[c].short_name)
-			  console.log ("found zip "+data.results[i].address_components[c].short_name)
+			  log += ("found zip "+data.results[i].address_components[c].short_name)
 			  break;
 			}
 		    }
 		}
+		console.log ('log: '+log)
+		$('#showList').html(log)
 	    }); // end ajax callback
 	}); //end geolocation callback
     }else{
