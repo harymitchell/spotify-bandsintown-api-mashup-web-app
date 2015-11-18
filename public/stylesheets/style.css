@@ -114,7 +114,7 @@ body {
                                 padding-top: 5px;
 				text-align:center;
 			}
-
+                        
 fieldset span{
   margin: 5px
 }
@@ -131,4 +131,7 @@ input#inputZipCode{
 }
 .parentRow {
   color: #337ab7;
+}
+.parentRow a{
+  font-size: x-large
 }
