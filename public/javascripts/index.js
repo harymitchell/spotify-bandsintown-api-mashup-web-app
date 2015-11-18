@@ -154,33 +154,26 @@ function setUpListEvents () {
 }
 
 function setZipCodeForClient(){
-    var log = ''
     if(navigator.geolocation) {
 	navigator.geolocation.getCurrentPosition(function(a) {
 	    console.log (a.coords)
 	    coords = a.coords
-	    url = "http://maps.googleapis.com/maps/api/geocode/json?latlng="+coords.latitude+","+coords.longitude+"&sensor=true&callback=zipmap"
+	    url = "https://maps.googleapis.com/maps/api/geocode/json?latlng="+coords.latitude+","+coords.longitude+"&sensor=true&callback=zipmap"
 	    console.log (url)
 	    $.ajax({
 	      url: url,
 	      dataType: 'json',
 	      cache: true,
 	    }).success(function( data ) {
-		//console.log (data)
-		log += 'data '+JSON.stringify(data)
+		console.log (JSON.stringify(data))
 		for (i in data.results){
-		    log += ("found data results "+data.results[i])
 		    for (c in data.results[i].address_components){
-			log += ("found data.results[i].address_components "+data.results[i].address_components)
 			if (data.results[i].address_components[c].types && data.results[i].address_components[c].types[0] == 'postal_code'){
 			  $( "#inputZipCode" ).val (data.results[i].address_components[c].short_name)
-			  log += ("found zip "+data.results[i].address_components[c].short_name)
 			  break;
 			}
 		    }
 		}
-		console.log ('log: '+log)
-		$('#showList').html(log)
 	    }); // end ajax callback
 	}); //end geolocation callback
     }else{
