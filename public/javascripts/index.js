@@ -166,10 +166,14 @@ function setZipCodeForClient(){
 	      cache: true,
 	    }).success(function( data ) {
 		//console.log (data)
-		for (c in data.results[0].address_components){
-		    //console.log (data.results[0].address_components[c])
-		    if (data.results[0].address_components[c].types && data.results[0].address_components[c].types[0] == 'postal_code'){
-		      $( "#inputZipCode" ).val (data.results[0].address_components[c].short_name)
+		for (i in data.results){
+		    for (c in data.results[i].address_components){
+			//console.log (data.results[0].address_components[c])
+			if (data.results[i].address_components[c].types && data.results[i].address_components[c].types[0] == 'postal_code'){
+			  $( "#inputZipCode" ).val (data.results[i].address_components[c].short_name)
+			  console.log ("found zip "+data.results[i].address_components[c].short_name)
+			  break;
+			}
 		    }
 		}
 	    }); // end ajax callback
