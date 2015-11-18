@@ -101,7 +101,6 @@ body {
 		.list table th {
 			background:#EEE;
 			font-weight:600;
-			padding:10px 20px;
 			text-align:center;
 		}
 		.list table tbody {
@@ -124,4 +123,10 @@ input#inputRadius{
 }
 input#inputZipCode{
   width: 65px
+}
+.list#showList table{
+  table-layout: fixed;
+}
+.parentRow {
+  color: #337ab7;
 }
