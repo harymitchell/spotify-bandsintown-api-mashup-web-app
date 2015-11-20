@@ -1,8 +1,10 @@
 // Event data array for filling in info box.
 var lastEventsData = [];
+var lastSearch;
 
 // DOM Ready =============================================================
 $(document).ready(function() {
+    $('#clearButton').hide();
     setZipCodeForClient()
     var lastTableContent = localStorage.getItem("lastTableContent")
     if (lastTableContent) {
@@ -34,23 +36,45 @@ $(document).ready(function() {
     $('#logout').on('click', function(){
         localStorage.setItem("lastTableContent", '');
     })
+    $('#clearButton').on('click', function(){
+	if (lastSearch) {
+	    lastSearch.abort()
+	}
+	$('#clearButton').hide();
+	$('#searchButton').show();
+	$('.throbber-loader').hide();
+        localStorage.setItem("lastTableContent", '');
+	$('#showList.list').html('')
+    });
     setUpListEvents ()
 });
 
 function searchEvents (){
     // Sreach events
     $('#searchButton').hide();
+    $('#clearButton').show();
     $('.throbber-loader').show();
     var zip = $('input#inputZipCode').val()
     var radius = $('input#inputRadius').val()
+    var searchArtists = $('input#searchArtists').prop('checked')
+    var searchTracks = $('input#searchTracks').prop('checked')
+    var searchPlaylists = $('input#searchPlaylists').prop('checked')
+    console.log (searchArtists)
     console.log (zip)
     console.log (radius)
-    $.ajax({
+    lastSearch = $.ajax({
 	type: 'POST',
-	data: {zip: zip, radius: radius},
+	data: {
+		zip: zip,
+		radius: radius,
+		searchArtists: searchArtists,
+		searchTracks: searchTracks,
+		searchPlaylists: searchPlaylists
+	    },
 	url: '/search',
 	dataType: 'JSON'
     }).done(function( response ) {
+	$('#clearButton').hide();
 	$('#searchButton').show();
 	$('.throbber-loader').hide();
 	console.log ('post done with response: ')
@@ -65,7 +89,7 @@ function loadEventsList (events, sortValue){
     var currentArtist = ''
     var escapedCurrentArtist = ''
     // Sort events
-    if (sortValue && sortValue != '') {
+    if (events && sortValue && sortValue != '') {
 	events.sort (function(a,b){
 	    if (a[sortValue] < b[sortValue]) {
 		return -1
@@ -77,7 +101,7 @@ function loadEventsList (events, sortValue){
 	});
     }
      
-    if (events[0]) {
+    if (events && events[0]) {
 	tableContent += '<table>'
 	    tableContent += '<col width="45%" />'
 	    tableContent += '<col width="25%" />'
@@ -85,7 +109,7 @@ function loadEventsList (events, sortValue){
 	    tableContent += '<col width="15%" />'
 	    tableContent += '<tbody>'
 	$.each(events, function(){
-	    if (this.artists[0] && this.artists[0].name != currentArtist) {
+	    if (this.artists && this.artists[0] && this.artists[0].name != currentArtist) {
 		// New parent row
 		currentArtist = this.artists[0].name
 		escapedCurrentArtist = currentArtist.replace(/[^a-z0-9]/gi,'');

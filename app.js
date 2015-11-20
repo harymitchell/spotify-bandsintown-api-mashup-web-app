@@ -171,23 +171,40 @@ app.get('/callback', function(req, res) {
 app.post('/search', function(req, res, next) {
   getSpotifyArtists(req, res, function(){
     console.log("redirecting...")  
-    res.send({events: req.session.user.last_events})
+    if (req.session.user && ! req.hasError) {
+      // Set session last parameters
+      var zipCode = cities.zip_lookup(req.body.zip)
+      req.session.user.searchPlaylists = req.body.searchPlaylists
+      req.session.user.searchArtists = req.body.searchArtists
+      req.session.user.searchTracks = req.body.searchTracks
+      req.session.user.zip = req.body.zip
+      req.session.user.radius = req.body.radius
+      req.session.user.eventsCache[parameterTypeForRequest(req)] = req.session.user.last_events
+      res.send({events: filteredBandsintownEvents(req, req.session.user.last_events, zipCode)})
+    }else{
+      res.send({})      
+    }
   })
 });
 
 
 function getSpotifyArtists(req, res, callback){
   // Get Spotify artists for session user.
+  var cache
+  console.log (req.body)
+  //console.log (req.session.user)
   if (req.session.user) {
-    if (req.session.user.last_artists && req.session.user.last_artists.length > 0){
-      console.log ("Using cached spotify artists.")
-      getSpotifyArtistsEventsFromBandsintown (req.session.user.last_artists, req, res, callback)      
+    if (req.session.user.eventsCache) cache = req.session.user.eventsCache[parameterTypeForRequest(req)];  console.log ("got cached spotify evens!")
+    if (req.session.user.eventsCache && cache && cache.length > 0){
+      console.log ("Using cached spotify evens!")
+      req.session.user.last_events = cache
+      callback()    
     }else{
       // Gather artists from Spotify API.
       var refresh_token = req.session.refresh_token
       var access_token = req.session.access_token
       req.session.user.last_artists = []
-      console.log ("Searching for user: "+ JSON.stringify(req.session.user).display_name)
+      console.log ("Searching for user: "+ req.session.user.display_name)
       var artistOptions = {
         url: 'https://api.spotify.com/v1/me/following?type=artist',
         headers: { 'Authorization': 'Bearer ' + access_token },
@@ -206,48 +223,65 @@ function getSpotifyArtists(req, res, callback){
       // Gather spotify artists.
       async.series([
         function(cb){ // Gather followed artists
-          request.get(artistOptions, function(error, response, body) {
-            // console.log ("Found "+body.artists.items.length+" followed artists.")
-            // console.log (body.artists)
-            if (body.artists){
-              req.session.user.last_artists = req.session.user.last_artists.concat (body.artists.items)
-            }
-            console.log ("req.session.user.last_artists="+JSON.stringify(req.session.user.last_artists))
-            cb()
-          });
+          if (req.body.searchArtists === 'true') {
+            request.get(artistOptions, function(error, response, body) {
+              // console.log ("Found "+body.artists.items.length+" followed artists.")
+              // console.log (body.artists)
+              if (body.artists){
+                req.session.user.last_artists = req.session.user.last_artists.concat (body.artists.items)
+              }
+              console.log ("req.session.user.last_artists="+JSON.stringify(req.session.user.last_artists))
+              cb()
+            });
+          }else{
+            console.log ("not searching for artists")
+            cb()            
+          }
         }
         ,function(cb){ // Gather saved tracks
-          request.get(trackOptions, function(error, response, body) {
-            addToArtistsFromTracks (req, body.items, cb)
-          });
+          if (req.body.searchTracks === 'true') {
+            request.get(trackOptions, function(error, response, body) {
+              addToArtistsFromTracks (req, body.items, cb)
+            });
+          }else{
+            console.log ("not searching for tracks")
+            cb()            
+          }
         }
         ,function(cb){ // Gather all tracks from playlists.
-          request.get(playlistOptions, function(error, response, body) {
-            var i,j;
-            var playlistTrackOptions = {
-              url: '',
-              headers: { 'Authorization': 'Bearer ' + access_token },
-              json: true
-            };
-            console.log ("found playlists: "+JSON.stringify(body.items))
-            var c = 0
-            var qlen = body.items.length
-            for (i=0;i<body.items.length;i++){
-              playlistTrackOptions.url = body.items[i].tracks.href
-              console.log('href: '+playlistTrackOptions.url)
-              request.get(playlistTrackOptions, function(error, response, body) { // gather all artists from tracks in playlist
-                c += 1
-                console.log ('c: '+c+', qlen: '+qlen)
-                if(c == qlen){
-                  console.log('with callback')
-                  addToArtistsFromTracks (req, body.items, cb)
-                }else{
-                  addToArtistsFromTracks (req, body.items, null)                  
+          if (req.body.searchPlaylists === 'true') {
+            request.get(playlistOptions, function(error, response, body) {
+              if (body.items) {
+                var i,j;
+                var playlistTrackOptions = {
+                  url: '',
+                  headers: { 'Authorization': 'Bearer ' + access_token },
+                  json: true
+                };
+                //console.log ("found playlists: "+JSON.stringify(body.items))
+                var c = 0
+                var qlen = body.items.length
+                for (i=0;i<body.items.length;i++){
+                  playlistTrackOptions.url = body.items[i].tracks.href
+                  console.log('href: '+playlistTrackOptions.url)
+                  request.get(playlistTrackOptions, function(error, response, body) { // gather all artists from tracks in playlist
+                    c += 1
+                    console.log ('c: '+c+', qlen: '+qlen)
+                    if(c == qlen){
+                      console.log('with callback')
+                      addToArtistsFromTracks (req, body.items, cb)
+                    }else{
+                      addToArtistsFromTracks (req, body.items, null)                  
+                    }
+                  });
                 }
-              });
-            }
-            // console.log ("req.session.user.last_artists="+JSON.stringify(req.session.user.last_artists))
-          });
+                // console.log ("req.session.user.last_artists="+JSON.stringify(req.session.user.last_artists))
+              }
+            });
+          }else{
+            console.log ("not searching for playlists")
+            cb()            
+          }
         }
         ],
         // optional callback
@@ -263,86 +297,118 @@ function getSpotifyArtists(req, res, callback){
   }
 }
 
+function parameterTypeForRequest (req){
+  // Returns string value for type of parameter for req
+  if (req.body.searchArtists === 'true') {
+    return 'artists'
+  }else if (req.body.searchTracks === 'true') {
+    return 'tracks'
+  }else if (req.body.searchPlaylists === 'true') {
+    return 'playlists'
+  }else{
+    return 'none'
+  }
+}
+
+function lastSessionParametersMatchCurrent (req){
+  // Do the parameters in req match?
+  return  req.body &&
+          req.session.user &&
+          req.body.searchPlaylists === req.session.user.searchPlaylists &&
+          req.body.searchArtists === req.session.user.searchArtists &&
+          req.body.searchTracks === req.session.user.searchTracks &&
+          req.body.zip === req.session.user.zip &&
+          req.body.radius === req.session.user.radius
+}
+
 function addToArtistsFromTracks (req, tracks, cb){
   // Add to artists tracks from req with trackOptions.
-  var i,j;
-  console.log ("found "+tracks.length+" tracks: ")//+JSON.stringify(tracks))
-  for (i=0;i<tracks.length;i++){
-    for (j=0;j<tracks[i].track.artists.length;j++){
-      if (req.session.user.last_artists.indexOf(tracks[i].track.artists[j])==-1){
-        req.session.user.last_artists = req.session.user.last_artists.concat (tracks[i].track.artists[j])
+  if (tracks) {
+    var i,j;
+    //console.log ("found "+tracks.length+" tracks: ")//+JSON.stringify(tracks))
+    for (i=0;i<tracks.length;i++){
+      for (j=0;j<tracks[i].track.artists.length;j++){
+        if (req.session.user.last_artists.indexOf(tracks[i].track.artists[j])==-1){
+          req.session.user.last_artists = req.session.user.last_artists.concat (tracks[i].track.artists[j])
+        }
       }
     }
-  }
-  // console.log ("artists="+JSON.stringify(req.session.user.last_artists))
-  if(cb) {
-    console.log ("addToArtistsFromTracks calling back")
-    cb()
-  }else{
-    console.log("no callback")
+    // console.log ("artists="+JSON.stringify(req.session.user.last_artists))
+    if(cb) {
+      //console.log ("addToArtistsFromTracks calling back")
+      cb()
+    }else{
+      //console.log("no callback")
+    }
   }
 }
 
 function getSpotifyArtistsEventsFromBandsintown(artists, req, res, callback){
-  var zipCode = cities.zip_lookup(req.body.zip)
-  if (req.session.user && req.session.user.cached_events){
-    console.log("using cached events for user")
-    req.session.user.last_events = filteredBandsintownEvents(req, req.session.user.cached_events, zipCode)
-    callback()
-  }else{
-    var bandsintown_url_head = 'http://api.bandsintown.com/artists/'
-    var bandsintown_url_tail = '/events.json?api_version=2.0&app_id=showfinderplusbetadev'+encodeURIComponent(generateRandomString(4))
-    var bandsintown_events = []
-    req.session.user.cached_events = []
-    // Asnchronous loop.
-    async.each(
-      artists, // List of spotify artists to iterate
-      function(artist, cb){ // Function to call on each item.
-        var url_encoded = bandsintown_url_head+encodeURIComponent(artist['name'])+bandsintown_url_tail
-        console.log ("encoded uri: "+url_encoded)
-        request.get(url_encoded, function(error, response, body){
-            if (error) {
-              console.log ("bandsintown artist callback err: "+error)
-            }else{
-              var body_json = JSON.parse(body)
-              // Cache events, to avoid rate limiting
-              req.session.user.cached_events = req.session.user.cached_events.concat(body_json)
-              // console.log ("bandsintown artist callback for body of length: "+body_json.length)
-              bandsintown_events = bandsintown_events.concat(filteredBandsintownEvents(req, body_json, zipCode))
-            }
-            cb() // required for call to return!
-        });
-      },
-      function(err){ // Callback when all asynch calls return.
-        console.log ("return callback")
-        if (err){
-          console.error ("Error: "+err)
-        }else{
-          // console.log ("bandsintown_events: "+JSON.stringify(bandsintown_events))
-          console.log ("all asynch calls in getSpotifyArtistsEventsFromBandsintown have returned")
-          req.session.user.last_events = bandsintown_events
-          callback()
-        }
-      }
-    ); // end async.each
+  // Using artists, gather event data from Bandsintown.
+  if (!req.session.user.eventsCache) {
+    req.session.user.eventsCache = {}
   }
+  var hasError;
+  var bandsintown_url_head = 'http://api.bandsintown.com/artists/'
+  var bandsintown_url_tail = '/events.json?api_version=2.0&app_id=showfinderplusbetadev'+encodeURIComponent(generateRandomString(4))
+  var bandsintown_events = []
+  req.session.user.cached_events = []
+  // Asnchronous loop.
+  async.each(
+    artists, // List of spotify artists to iterate
+    function(artist, cb){ // Function to call on each item.
+      var url_encoded = bandsintown_url_head+encodeURIComponent(artist['name'])+bandsintown_url_tail
+      //console.log ("encoded uri: "+url_encoded)
+      request.get(url_encoded, function(error, response, body){
+          var body_json = JSON.parse(body)
+          if (error) {
+            console.log ("bandsintown artist callback err: "+error)
+            hasError = true
+          }else if (body_json && body_json.errors) {
+            console.log ("bandsintown artist callback body err: "+JSON.stringify(body_json.errors))
+            hasError = true
+          }else{
+            // Cache events, to avoid rate limiting
+            req.session.user.cached_events = req.session.user.cached_events.concat(body_json)
+            // console.log ("bandsintown artist callback for body of length: "+body_json.length)
+            bandsintown_events = bandsintown_events.concat(body_json)
+          }
+          cb() // required for call to return!
+      });
+    },
+    function(err){ // Callback when all asynch calls return.
+      console.log ("return callback")
+      if (err || hasError === true){
+        console.error ("Error: "+err)
+        req.hasError = true
+        callback()
+      }else{
+        // console.log ("bandsintown_events: "+JSON.stringify(bandsintown_events))
+        console.log ("all asynch calls in getSpotifyArtistsEventsFromBandsintown have returned")
+        req.session.user.last_events = bandsintown_events
+        callback()
+      }
+    }
+  ); // end async.each
 }
 
 function filteredBandsintownEvents(req, events, zipCode){
   // Returns a list of filtered items from events based on given zipCode and the zip and radius contained in the req.
-  var result = [] // to return 
-  var i = 0;
-  for (i=0;i<events.length;i++){
-    if (req.body && req.body.zip && req.body.radius && zipCode && result.indexOf(events[i]) == -1){
-      var dist;
-      dist = geolib.getDistance(events[i].venue,zipCode)*0.000621371; // miles
-      if (req.body.radius >= dist) {
+  var result = [] // to return
+  if (events) {
+    var i = 0;
+    for (i=0;i<events.length;i++){
+      if (req.body && req.body.zip && req.body.radius && zipCode && result.indexOf(events[i]) == -1){
+        var dist;
+        dist = geolib.getDistance(events[i].venue,zipCode)*0.000621371; // miles
+        if (req.body.radius >= dist) {
+          result.push (events[i])
+        }
+      }else if(result.indexOf(events[i]) == -1){  
         result.push (events[i])
+      }else{
+        console.log ("duplicate event: "+JSON.stringify(events[i]))
       }
-    }else if(result.indexOf(events[i]) == -1){  
-      result.push (events[i])
-    }else{
-      console.log ("duplicate event: "+JSON.stringify(events[i]))
     }
   }
   return result

@@ -13,12 +13,25 @@ block content
           h3= "Welcome, "+user.display_name+"!"
         p
           a.btn.btn-lg.btn-success#searchButton(role='button') Search
+          a.btn.btn-lg.btn-success#clearButton(role='button') Clear
           .throbber-loader
-          fieldset
-              span Within
-              input#inputRadius(type='number', placeholder='Miles', min="1" max="150")
-              span of
-              input#inputZipCode(type='text', placeholder='Zip Code', pattern="d{5,5}(-\d{4,4})?")
+          .searchParameters
+            p Search parameters
+            fieldset
+                span Find events within
+                input#inputRadius(type='number', placeholder='Miles', min="1" max="150")
+                span miles of zip code
+                input#inputZipCode(type='text', placeholder='Zip Code', pattern="d{5,5}(-\d{4,4})?")
+            span Gather Spotify data from:
+            fieldset
+                input#searchArtists(type='radio', name='parameter', value='Artists' checked)
+                span Saved Artists
+            fieldset
+                input#searchTracks(type='radio', name='parameter', value='Tracks')
+                span Saved Tracks
+            fieldset
+                input#searchPlaylists(type='radio', name='parameter', value='Playlists')
+                span Saved Playlists
       else
         p
           a.btn.btn-lg.btn-success#loginButton(href='/login', role='button') Spotify Log-In

@@ -9,7 +9,7 @@ router.get('/', function(req, res, next) {
 
 /* GET Logout. */
 router.get('/logout', function(req, res, next) {
-  console.log ("Logging out for user: "+ JSON.stringify(req.session.user))
+  if (req.session.user && req.session.user.display_name) console.log ("Loggin out for user: "+ JSON.stringify(req.session.user.display_name))
   req.session.user = null
   res.redirect ('/')
 });

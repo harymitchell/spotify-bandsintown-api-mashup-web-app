@@ -45,6 +45,9 @@ body {
 .jumbotron {
   text-align: center;
   border-bottom: 1px solid #e5e5e5;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  padding-top: 10px
 }
 .jumbotron .btn {
   padding: 14px 24px;
@@ -115,9 +118,12 @@ body {
 				text-align:center;
 			}
                         
-fieldset span{
-  margin: 5px
-}
+fieldset input {
+  padding: 5px
+}                        
+  fieldset span{
+    margin: 5px
+  }
 
 input#inputRadius{
   width: 65px
@@ -135,3 +141,12 @@ input#inputZipCode{
 .parentRow a{
   font-size: x-large
 }
+.searchParameters{
+  font-size: 16px;
+}
+  .searchParameters fieldset{
+    padding: 5px
+  }
+  .searchParameters p{
+    margin-bottom: 0
+  }
