@@ -68,18 +68,11 @@ app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, '/views')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', routes);
 app.use('/users', users);
-var bypassViews = process.env.NODE_ENV == 'development' ? 
-                    charlotte.bypassViews() : function(req, res, next) { next(); };
 
-// PhoneGap
-var charlotte = require('charlotte');
-charlotte.version = "1.0";
-charlotte.supportExpress(app);
-app.use(app.router);
 
 /* GET login. */
 app.get('/login', function(req, res) {
