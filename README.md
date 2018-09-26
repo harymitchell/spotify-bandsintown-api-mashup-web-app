@@ -1,3 +1,6 @@
+# Notice!
+Since developing this project, the Bandsintown API has begun severely rate-limiting free tier usage.  Since this was a pet-project, I am not going to pay for a key.  The app may still work for you, but usage will be limited.  The app has not been updated to display rate-limit warnings.  It will simply stop returning results.  Apologies!
+
 # About
 The Show Spot allows user authentication via Spotify's secure log-in.  Spotify does NOT share passwords or any other sensitive data with The Show Spot.  The Show Spot accesses your "followed" artists, as well as the artists from your saved tracks.  Unfortunately, it is not possible to access your radio stations.  We wish it was!
 
